@@ -1,0 +1,156 @@
+  AWSTemplateFormatVersion: 2010-09-09
+  
+  Description:  This template deploys a WAF with basic rules and attach on ALB.
+
+  Parameters:
+   ParentStackName:
+    Type: String
+    Default: AB3-ECS-Fargate
+    Description: The name of the parent Stack where the LoadBalancer was built.
+
+  Resources:
+    BlockListIPv4:
+      Type: 'AWS::WAFv2::IPSet'
+      Properties:
+        Description: Blocked IP Ranges
+        Name: BlockListIPv4
+        Scope: 'REGIONAL'
+        IPAddressVersion: IPV4
+        Addresses:
+         - 1.1.1.1/32
+         - 2.2.2.2/32
+         - 3.3.3.3/32
+
+    RegexPatternSet:
+      Type: AWS::WAFv2::RegexPatternSet
+      Properties:
+        Name: RegexPatternSet
+        Scope: REGIONAL
+        Description: This is an sample RegexPatternSet
+        RegularExpressionList:
+          - ^attacker$
+          - ^script$
+
+    WebACL:
+      Type: 'AWS::WAFv2::WebACL'
+      Properties:
+        Name: WebACL
+        Scope: 'REGIONAL'
+        Description: Web Application Firewall ACL for LB
+        DefaultAction:
+          Allow: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          CloudWatchMetricsEnabled: true
+          MetricName: WebACLMetric
+
+        Rules:
+          - Name: RuleWithAWSManagedRules
+            Priority: 0
+            OverrideAction:
+              None: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: RuleWithAWSManagedRulesMetric
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesCommonRuleSet
+                ExcludedRules: []
+
+          - Name: StringMatch 
+            Priority: 1 
+            Action:
+              Allow: {} 
+            VisibilityConfig:
+              SampledRequestsEnabled: true 
+              CloudWatchMetricsEnabled: true 
+              MetricName: StringMatchMetric
+            Statement:
+              ByteMatchStatement:
+                FieldToMatch:
+                  AllQueryArguments:
+                    {}
+                PositionalConstraint: CONTAINS
+                SearchString: firefox
+                TextTransformations:
+                  - Priority: 1
+                    Type: HTML_ENTITY_DECODE
+  
+          - Name: BlockXssAttack
+            Priority: 2
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: BlockXssAttackMetric
+            Statement:
+              XssMatchStatement:
+                FieldToMatch:
+                  AllQueryArguments: {}
+                TextTransformations:
+                  - Priority: 1
+                    Type: NONE
+
+          - Name: BlockSQLinjectionAttack
+            Priority: 3
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: BlockSQLinjectionAttackMetric
+            Statement:
+              SqliMatchStatement:
+                FieldToMatch:
+                  AllQueryArguments: {}
+                TextTransformations:
+                  - Priority: 1
+                    Type: NONE
+          
+          - Name: IPlistRuleIPv4
+            Priority: 4
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: IPlistRuleIPv4Metric
+            Statement:
+              IPSetReferenceStatement:
+                Arn: !GetAtt BlockListIPv4.Arn
+
+          - Name: RegexPatternSetRule
+            Priority: 5
+            Action:
+              Block: {}
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: RegexPatternSetRuleMetric
+            Statement:
+              RegexPatternSetReferenceStatement:
+                Arn: !GetAtt RegexPatternSet.Arn
+                FieldToMatch: 
+                  AllQueryArguments: {}
+                TextTransformations:
+                  - Priority: 1
+                    Type: NONE
+
+    MyWebACLAssociation:
+      Type: 'AWS::WAFv2::WebACLAssociation'
+      Properties:
+        WebACLArn: !GetAtt WebACL.Arn
+        ResourceArn: 
+          Fn::ImportValue: !Sub "${ParentStackName}-LoadBalancerArn"
+
+  Outputs:
+    Region:
+      Description: AWS Region
+      Value: !Ref AWS::Region
+
+    Blocklist:
+      Description: Prohibited IPs
+      Value: !Ref BlockListIPv4

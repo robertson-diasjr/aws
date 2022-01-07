@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template deploys a RDS Aurora Cluster.
+
+#############
+Parameters:
+#############
+
+  DBUsername:
+    NoEcho: 'true'
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password MySQL database access. Minimum Lenght = 8 and Maximum Lenght = 41
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+
+  DBInstanceClass:
+    Description: The instance type to use for the DB.
+    Type: String
+    Default: db.t2.small
+    AllowedValues:
+     - db.t2.small
+     - db.t2.medium
+     - db.r4.large
+
+  ParentStackName:
+    Type: String 
+    Default: AB3-Base-VPC
+    Description: The name of the parent Base Stack, where the VPC was built. 
+
+#############
+Resources:
+#############
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: CloudFormation managed DB subnet group.
+      SubnetIds:
+        - Fn::ImportValue: !Join ['', [ dbsub1- , !Ref ParentStackName ]]
+        - Fn::ImportValue: !Join ['', [ dbsub2- , !Ref ParentStackName ]]
+
+  RDSDBClusterParameterGroup: 
+    Type: "AWS::RDS::DBClusterParameterGroup"
+    Properties: 
+      Description: "CloudFormation Sample Aurora Cluster Parameter Group"
+      Family: aurora5.6
+      Parameters: 
+        time_zone: US/Eastern
+
+  DBParameterGroup: 
+    Type: "AWS::RDS::DBParameterGroup"
+    Properties: 
+      Description: "CloudFormation Sample Aurora Parameter Group"
+      Family: aurora5.6
+      Parameters: 
+       sql_mode: IGNORE_SPACE
+
+  RDSCluster:
+    Type: 'AWS::RDS::DBCluster'
+    Properties:
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBClusterIdentifier: aurora-cluster
+      Engine: aurora
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBClusterParameterGroupName: !Ref RDSDBClusterParameterGroup
+      VpcSecurityGroupIds: 
+        - Fn::ImportValue: !Join ['', [ dbsg- , !Ref ParentStackName ]]
+
+  RDSDBInstance1:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: aurora-instance1
+      Engine: aurora
+      DBClusterIdentifier: !Ref RDSCluster
+      PubliclyAccessible: false
+      DBInstanceClass: !Ref DBInstanceClass
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+
+#  RDSDBInstance2:
+#    Type: 'AWS::RDS::DBInstance'
+#    Properties:
+#      DBInstanceIdentifier: aurora-instance2
+#      Engine: aurora
+#      DBClusterIdentifier: !Ref RDSCluster
+#      PubliclyAccessible: false
+#      DBInstanceClass: !Ref DBInstanceClass
+#      DBSubnetGroupName: !Ref DBSubnetGroup
+#      DBParameterGroupName: !Ref DBParameterGroup

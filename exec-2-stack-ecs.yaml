@@ -1,0 +1,581 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: This template deploys an ECS cluster based on Fargate container.
+
+Parameters:
+  
+  VPC:
+    Type: AWS::EC2::VPC::Id
+  
+  SSLCertificate:
+    Type: String
+    Default: 'arn:aws:acm:us-east-1:099846274972:certificate/62d26452-1866-4f98-a80a-f1ae434d7326'
+  
+  Image:
+    Type: String
+    # Update with the Docker image. "You can use images in the Docker Hub registry or specify other repositories (repository-url/image:tag)."
+    Default: nginxdemos/hello
+  
+  ECRRepoCreation:
+    Type: String
+    Description: "Indicates if an ECR respository should be created"
+    Default: "NO"
+    AllowedValues:
+      - "YES"
+      - "NO"
+  
+  ServiceName:
+    Type: String
+    Description: "Give a name to your application (no spaces)"  
+    Default: AB3-Web-App
+  
+  LifecycleEnvironment:
+    Type: String
+    Description: "Lifecycle enviroment of this cluster"
+    Default: Development
+    AllowedValues:
+      - Development
+      - Qas
+      - Production
+  
+  PublicIpConfig:
+    Type: String
+    Description: "Enable or Disable valid ip addresses for the service."  
+    Default: DISABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+  
+  Vcpu:
+    Type: Number
+    Description: >
+        # 256 (.25 vCPU) - Available memory values 0.5GB, 1GB, 2GB // 
+        # 512 (.5 vCPU) - Available memory values 1GB, 2GB, 3GB, 4GB // 
+        # 1024 (1 vCPU) - Available memory values 2GB - 8GB in 1GB increments // 
+        # 2048 (2 vCPU) - Available memory values 4GB - 16GB in 1GB increments // 
+        # 4096 (4 vCPU) - Available memory values 8GB - 30GB in 1GB increments
+    AllowedValues:
+      - 256
+      - 512
+      - 1024
+      - 2048
+      - 4096
+  
+  MemRam:
+    Type: Number
+    Description: >
+      # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU) // 
+      # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU) // 
+      # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU) // 
+      # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU) // 
+      # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+ 
+  HTTPSConfig:
+    Type: String
+    Default: "NO"
+    AllowedValues:
+      - "NO"
+      - "YES"
+ 
+  ContainerPort:
+    Type: Number
+    Description: "The TCP port for your container"  
+    Default: 80
+ 
+  HostPort:
+    Type: Number
+    Description: "The TCP port for the host"
+    Default: 80
+ 
+  LoadBalancerPortProduction:
+    Type: Number
+    Description: "The TCP port for Primary Load Balancer Listener (production)"
+    Default: 80
+ 
+  LoadBalancerPortProductionHTTPS:
+    Type: Number
+    Description: "The TCP port for Primary Load Balancer HTTPS Listener (production)"
+    Default: 443
+ 
+  HealthCheckPath:
+    Type: String
+    Default: /
+
+  DesiredTaskCount:
+    Type: Number
+    Description: "Desired container tasks"
+    Default: 2
+
+  MaxTaskCount:
+    Type: Number
+    Description: "Maximum container tasks (scaling-out)"
+    Default: 3
+  
+  AutoScalingTargetValue:
+    Type: Number
+    Description: "Autoscaling trigger cpu threshold (%)"
+    Default: 70
+
+  ParentStackName:
+    Type: String 
+    Default: AB3-Base-VPC
+    Description: The name of the parent Base Stack, where the VPC was built.
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups:
+      - 
+        Label: 
+          default: "Container Configuration"
+        Parameters: 
+          - ServiceName
+          - LifecycleEnvironment
+          - Image
+          - ECRRepoCreation
+          - ContainerPort
+          - HostPort
+          - PublicIpConfig
+          - Vcpu
+          - MemRam  
+      - 
+        Label: 
+          default: "Network Configuration"
+        Parameters: 
+          - VPC
+          - ParentStackName
+          - HTTPSConfig
+          - SSLCertificate
+      - 
+        Label: 
+          default: "Autoscaling Configuration"
+        Parameters: 
+          - DesiredTaskCount
+          - MaxTaskCount
+          - AutoScalingTargetValue
+      - 
+        Label: 
+          default: "Load Balancing Configuration"
+        Parameters: 
+          - LoadBalancerPortProduction
+          - LoadBalancerPortProductionHTTPS
+          - HealthCheckPath
+    ParameterLabels: 
+      
+      ServiceName: 
+        default: "Service Name"
+      
+      LifecycleEnvironment:
+        default: "Lifecycle Environment"  
+      
+      ECRRepoCreation:
+        default: "Do you wish to create an ECR repository?"
+      
+      ContainerPort: 
+        default: "Container Port"
+      
+      HostPort: 
+        default: "Host Port"
+      
+      PublicIpConfig: 
+        default: "Public IP Allocation"
+      
+      Vcpu:
+        default: "vCPUs avaliable to the container"
+      
+      MemRam:
+        default: "Memory available to the container (in MB)"
+      
+      DesiredTaskCount: 
+        default: "Desired Task (Container) Count"
+      
+      MaxTaskCount: 
+        default: "Maximum Task (Container) Count"
+      
+      AutoScalingTargetValue: 
+        default: "Autoscaling CPU Utilization(%) Threshold"
+      
+      LoadBalancerPortProduction: 
+        default: "Primary Port for Load Balancer Listener"
+      
+      LoadBalancerPortProductionHTTPS: 
+        default: "Primary Port for Load Balancer HTTPS Listener (if HTTPS is enabled)"
+      
+      HTTPSConfig:
+        default: "Enable HTTPS?"
+      
+      SSLCertificate:
+        default: "SSL certificate ARN in Certificate Manager (if HTTPS is enabled)"
+      
+      HealthCheckPath: 
+        default: "Load Balancer Health Check Path"
+
+Conditions: 
+  
+  enableHTTPS: !Equals [ !Ref HTTPSConfig, "YES" ]
+  createECRRepo: !Equals [ !Ref ECRRepoCreation, "YES" ]
+
+Resources:
+  
+  ECRRepo:
+    Type: AWS::ECR::Repository
+    Condition: createECRRepo
+    Properties: 
+      RepositoryName: !Ref ServiceName
+      Tags: 
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ServiceName
+      ClusterSettings:
+          - Name: containerInsights
+            Value: enabled
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref ServiceName
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref Vcpu
+      Memory: !Ref MemRam
+      ExecutionRoleArn: !Ref ExecutionRole      
+      TaskRoleArn: !Ref TaskRole
+      ContainerDefinitions:
+        - Name: !Ref ServiceName
+          Image: !Ref Image
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              HostPort: !Ref HostPort
+              Protocol: tcp
+          # Send logs to CloudWatch Logs
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: ecs
+#          Environment:
+#            - Name: NODE_ENV
+#              Value: production
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  # ECS task execution role
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['', [!Ref ServiceName, TaskExecutionRole]]
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  # ECS task role
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['', [!Ref ServiceName, TaskRole]]
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+      # Policies:
+      #   -
+  
+  # Autoscaling role
+  AutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['', [!Ref ServiceName, AutoScalingRole]]
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole'
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  Service:
+    Type: AWS::ECS::Service
+    # This dependency is needed so that the load balancer is setup correctly in time
+    DependsOn:
+      - ListenerHTTP80
+      #- ListenerHTTPS
+    Properties: 
+      ServiceName: !Ref ServiceName
+      Cluster: !Ref Cluster
+      DeploymentController:
+        Type: CODE_DEPLOY
+      SchedulingStrategy: REPLICA
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      DesiredCount: !Ref DesiredTaskCount
+      # This may need to be adjusted if the container takes a while to start up
+      HealthCheckGracePeriodSeconds: 30
+      LaunchType: FARGATE
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          # change to DISABLED if you're using private subnets that have access to a NAT gateway
+          AssignPublicIp: !Ref PublicIpConfig
+          Subnets:
+            - Fn::ImportValue: !Join ['', [ privsub1- , !Ref ParentStackName ]]
+            - Fn::ImportValue: !Join ['', [ privsub2- , !Ref ParentStackName ]]
+          SecurityGroups:
+             - Fn::ImportValue: !Join ['', [ appsg- , !Ref ParentStackName ]]
+            #- !Ref ApplicationSecurityGroup
+            #- !Ref ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: !Ref ServiceName
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      # will look for a 200 status code by default unless specified otherwise
+      HealthCheckPath: !Ref HealthCheckPath
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      Name: !Join ['', [tgt-,!Ref ServiceName, "-1"]]
+      Port: !Ref LoadBalancerPortProduction
+      Protocol: HTTP
+      #TargetGroupAttributes:
+      #  - Key: deregistration_delay.timeout_seconds
+      #    Value: 60
+      TargetType: ip
+      VpcId: !Ref VPC
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  
+  ListenerHTTP80:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref LoadBalancerPortProduction
+      Protocol: HTTP
+  
+  ListenerHTTPS443:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: enableHTTPS
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref LoadBalancerPortProductionHTTPS
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+  
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [alb-, !Ref ServiceName]]
+      # "internal" is also an option
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::ImportValue: !Join ['', [ websg- , !Ref ParentStackName ]]
+      Subnets:
+        - Fn::ImportValue: !Join ['', [ pubsub1- , !Ref ParentStackName ]]
+        - Fn::ImportValue: !Join ['', [ pubsub2- , !Ref ParentStackName ]]
+      Tags:
+        - Key: app
+          Value: !Ref ServiceName
+        - Key: environment
+          Value: !Ref LifecycleEnvironment 
+  
+  #DNSRecord:
+  #  Type: AWS::Route53::RecordSet
+  #  Properties:
+  #    HostedZoneName: !Join ['', [!Ref HostedZoneName, .]]
+  #    Name: !Join ['', [!Ref Subdomain, ., !Ref HostedZoneName, .]]
+  #    Type: A
+  #    AliasTarget:
+  #      DNSName: !GetAtt LoadBalancer.DNSName
+  #      HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+  
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['', [/ecs/, !Ref ServiceName]]
+  
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: !Ref DesiredTaskCount
+      MaxCapacity: !Ref MaxTaskCount
+      ResourceId: !Join ['/', [service, !Ref Cluster, !GetAtt Service.Name]]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
+      RoleARN: !GetAtt AutoScalingRole.Arn
+  
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Join ['', [!Ref ServiceName, AutoScalingPolicy]]
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleInCooldown: 10
+        ScaleOutCooldown: 10
+        # Keep things at or lower than 50% CPU utilization, for example
+        TargetValue: !Ref AutoScalingTargetValue
+
+  # ECS parameters for pipeline usage
+  SSMContainerName:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Type: String
+      Description: !Join [" ", [ "ApplicationName", "container name for CodeBuild projects" ]]
+      #Policies: String
+      Tier: Standard
+      Value: !Ref ServiceName
+      Tags: 
+        app: !Ref ServiceName
+        environment: !Ref LifecycleEnvironment
+      Name: !Join ["", [ "/codebuild/", !Ref ServiceName, "/container_name" ] ]
+
+  SSMContainerPort:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Type: String
+      Description: !Join [" ", [ "ApplicationName", "container port for CodeBuild projects" ]]
+      #Policies: String
+      Tier: Standard
+      Value: !Ref ContainerPort
+      Tags: 
+        app: !Ref ServiceName
+        environment: !Ref LifecycleEnvironment
+      Name: !Join ["", [ "/codebuild/", !Ref ServiceName, "/container_port" ] ]
+
+Outputs:
+  
+  Cluster:
+    Description: "Cluster Name"
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub "${AWS::StackName}-Cluster"
+
+  ServiceName:
+    Description: "Cluster Name"
+    Value: !Ref ServiceName
+    Export:
+      Name: !Sub "${AWS::StackName}-ServiceName"
+
+  TaskDefinition:
+    Description: "Task Definition"
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-TaskDefinition"
+
+  LoadBalancer:
+    Description: "Load Balancer DNS Name"
+    Value: !Join ['', ['http://', !GetAtt LoadBalancer.DNSName]] #!GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerDNS"
+
+  LoadBalancerArn:
+    Description: "Load Balancer ARN"
+    Value: !Ref LoadBalancer
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerArn"
+
+  LoadBalancerName:
+    Description: "Load Balancer Name"
+    Value: !GetAtt LoadBalancer.LoadBalancerName
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerName"
+
+  ListenerHTTP80:
+    Description: "Listenet HTTP Production"
+    Value: !Ref ListenerHTTP80
+    Export:
+      Name: !Sub "${AWS::StackName}-ListenerProduction"
+
+  TargetGroupProductionArn:
+    Description: "Target Group ARN for production (blue) workloads"
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-TargetGroupProdArn"
+
+  TargetGroupProductionName:
+    Description: "Target Group Name for production (blue) workloads"
+    Value: !GetAtt TargetGroup.TargetGroupName
+    Export:
+      Name: !Sub "${AWS::StackName}-TargetGroupProdName"
+
+  ECRRepo:
+    Condition: createECRRepo
+    Description: "ECR repository"
+    Value: !Ref ECRRepo
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRRepo"
+
+  SSMContainerName:
+    Description: "SSM parameter for the container name"
+    Value: !Ref SSMContainerName
+    Export:
+      Name: !Sub "${AWS::StackName}-SSMContainerName"     
+
+  SSMContainerPort:
+    Description: "SSM parameter for the container port"
+    Value: !Ref SSMContainerPort
+    Export:
+      Name: !Sub "${AWS::StackName}-SSMContainerPort"    
