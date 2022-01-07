@@ -1,4 +1,4 @@
-Description:  This template deploys a VPC, Subnets (Public,APP and DB), NATGW, IGW, ACL, SG, and Routes across 2 AZs.
+Description:  This template lock-down the ACLs e NSGs deployed at previous stages
 
 ################
 Parameters:

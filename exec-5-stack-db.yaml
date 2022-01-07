@@ -88,13 +88,13 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       DBParameterGroupName: !Ref DBParameterGroup
 
-#  RDSDBInstance2:
-#    Type: 'AWS::RDS::DBInstance'
-#    Properties:
-#      DBInstanceIdentifier: aurora-instance2
-#      Engine: aurora
-#      DBClusterIdentifier: !Ref RDSCluster
-#      PubliclyAccessible: false
-#      DBInstanceClass: !Ref DBInstanceClass
-#      DBSubnetGroupName: !Ref DBSubnetGroup
-#      DBParameterGroupName: !Ref DBParameterGroup
+  RDSDBInstance2:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: aurora-instance2
+      Engine: aurora
+      DBClusterIdentifier: !Ref RDSCluster
+      PubliclyAccessible: false
+      DBInstanceClass: !Ref DBInstanceClass
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref DBParameterGroup

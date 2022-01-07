@@ -27,7 +27,7 @@ Parameters:
   ServiceName:
     Type: String
     Description: "Give a name to your application (no spaces)"  
-    Default: AB3-Web-App
+    Default: Demo-Web-App
   
   LifecycleEnvironment:
     Type: String
@@ -118,7 +118,7 @@ Parameters:
 
   ParentStackName:
     Type: String 
-    Default: AB3-Base-VPC
+    Default: Demo-Base-VPC
     Description: The name of the parent Base Stack, where the VPC was built.
 
 Metadata: 
