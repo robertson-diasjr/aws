@@ -25,4 +25,4 @@ Let me know and I'll be glad to invite you !!!, then ...
 - GNU
 
 ## Diagram
-![VPC Diagram](https://github.com/robertson-diasjr/aws/blob/main/aws/Diagram.jpg)
+![VPC Diagram](https://github.com/robertson-diasjr/aws/blob/master/Diagram.jpg)
