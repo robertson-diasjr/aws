@@ -1,6 +1,6 @@
 # AWS base VPC Deployment
 
-This code deploys a VPN Multi-Zone Tiered Web Application.
+This code deploys a VPC Multi-Zone Tiered Web Application.
 
 ## Modules
 
